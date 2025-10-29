@@ -1,2 +1,2 @@
 # nplm-redux
-A modern reimplementation of the paper: "A Neural Probabilistic Language Model" (Bengio et al., 2003) using modern deep learning algorithms and parallel training 
+⚠️ **Important:** This project is in progress until there is this disclaimer, even if there are files uploaded
