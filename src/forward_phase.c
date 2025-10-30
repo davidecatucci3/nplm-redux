@@ -3,10 +3,10 @@
 #include <stdio.h>
 #include <math.h>
 #include <time.h>
-#include <mpi.h>
+//#include <mpi.h>
 
-// external lfiles
-#include "C_table.h"
+// external files
+#include "embedding_matrix.h"
 #include "dot_product.h"
 #include "mat_mul.h"
 
@@ -17,11 +17,11 @@ int main() {
     int h = 50;
     int n = 5;
 
-    // varaibles 
+    // main variables 
     int ids[] = {1, 434, 45, 123, 3333}; // token ids vector
-    double* C = C_table(V, m);
-    double x[n][m];
-    double x_flat[n * m];
+    double* C = embedding_matrix(V, m); // C embedding matrix
+    double x[n][m]; 
+    double x_flat[n * m]; //input vector neural network that has been flattened 
 
     // perform forward computation for the word features layer
     for (int i = 0; i < n; i++) {
@@ -39,11 +39,18 @@ int main() {
     }
 
     // perform forward computation for the hidden layer
-    double* H = C_table(V, m);
-    double* o = matmul(H, x_flat, h, n*m, h);
+    double* H = embedding_matrix(h, n*m); // weights first layer
+    double d[h]; // bias first layer
 
     for (int i = 0; i < h; i++) {
-        o[i] = tanh(o[i]);
+        d[i] = i;
+
+    }
+
+    double* o = matmul(H, x_flat, h, n*m, h); // output first layer
+
+    for (int i = 0; i < h; i++) {
+        o[i] = tanh(o[i] + d[i]);
     }
 
     // perform forward computation for output units in the i-th block
