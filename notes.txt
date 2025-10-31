@@ -1,1 +1,9 @@
-- faster matmul using BLAS
+- faster matmul using BLAS then 4 loops: for m and n <= 10/20 4 loops are faster for 40/50 >= BLAS but check better
+- mpicc -I./src -o forward_phase src/*.c -lm
+- gcc -I./src -o forward_phase src/*.c -lm
+- gcc -I./src -I/opt/homebrew/opt/openblas/include \
+    -L/opt/homebrew/opt/openblas/lib \
+    -o forward_phase src/*.c -lopenblas -lm
+- mpicc -I./src -I/opt/homebrew/opt/openblas/include \
+    -L/opt/homebrew/opt/openblas/lib \
+    -o forward_phase src/*.c -lopenblas -lm

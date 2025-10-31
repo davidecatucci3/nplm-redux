@@ -20,11 +20,9 @@ void randn(double *out, int m) {
 
 // build C embedding matrix
 double* embedding_matrix(int V, int m) {
-    srand(time(NULL));
+    double *C = malloc(V * m * sizeof(double));
 
-    double *C = malloc(m * sizeof(double));
-
-    randn(C, m);
+    randn(C, V * m);
 
     return C;
 }
