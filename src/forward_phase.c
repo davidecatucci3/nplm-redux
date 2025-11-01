@@ -10,6 +10,10 @@
 // external files
 #include "embedding_matrix.h"
 
+int forward() {
+    return 0;
+}
+
 int main() {
     // seed
     srand(time(NULL));
@@ -21,8 +25,8 @@ int main() {
     int n = 2;
 
     // main variables 
-    int ids[] = {1, 434, 45, 123, 3333}; // token ids vector
-    int next_id = 23;
+    int ids[] = {23, 34}; // w1 and w2
+    int next_id = 3333; // w3
     double* C = embedding_matrix(V, m); // C embedding matrix 
 
     // perform forward computation for the word features layer
@@ -42,8 +46,8 @@ int main() {
     double* o = malloc(h * sizeof(double)); // output vector first layer
 
     cblas_dgemv( // BLAS faster matrix mul
-        CblasRowMajor,     // row-major layout
-        CblasNoTrans,      // don't transpose A
+        CblasRowMajor,    
+        CblasNoTrans,    
         h, n*m,
         1.0,
         H, n*m,           
@@ -57,25 +61,25 @@ int main() {
     }
 
     // perform forward computation for output units in the i-th block
-    int rank, comm_sz;
-    int M = 8;
-    double S = 0;
-    double local_s = 0;
-    double* local_U = embedding_matrix(V / M, h);
-    double* local_b = malloc((V/M) * sizeof(double));
-    double* local_y = malloc((V/M) * sizeof(double));
-    double* local_p = malloc((V/M) * sizeof(double));
-    double* p = malloc(V * sizeof(double));
-
     MPI_Init(NULL, NULL);
+
+    int rank, comm_sz;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
 
+    double S = 0;
+    double local_s = 0;
+    double* local_U = embedding_matrix(V / comm_sz, h); // weights second layer
+    double* local_b = malloc((V/comm_sz) * sizeof(double)); // bias second layer
+    double* local_y = malloc((V/comm_sz) * sizeof(double));
+    double* local_p = malloc((V/comm_sz) * sizeof(double));
+    double* p = malloc(V * sizeof(double));
+
     cblas_dgemv( // BLAS faster matrix mul
-        CblasRowMajor,     // row-major layout
-        CblasNoTrans,      // don't transpose A
-        V/M, h,
+        CblasRowMajor,     
+        CblasNoTrans,      
+        V/comm_sz, h,
         1.0,
         local_U, h,           
         o, 1,         
@@ -83,8 +87,8 @@ int main() {
         local_y, 1               
     );
 
-    for (int i = 0; i < V/M; i++) {
-        local_y[i] = tanh(local_y[i] + local_b[i]);
+    for (int i = 0; i < V/comm_sz; i++) {
+        local_y[i] = local_y[i] + local_b[i];
         local_p[i] = exp(local_y[i]);
             
         local_s += local_p[i];
@@ -94,16 +98,26 @@ int main() {
     MPI_Allreduce(&local_s, &S, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     
     // normalize the probabilities
-    for (int i = 0; i < V/M; i++) {
+    for (int i = 0; i < V/comm_sz; i++) {
         local_p[i] /= S;
     }
 
-    MPI_Allgather(local_p, V/M, MPI_DOUBLE, p, V/M, MPI_DOUBLE, MPI_COMM_WORLD);
+    MPI_Allgather(local_p, V/comm_sz, MPI_DOUBLE, p, V/comm_sz, MPI_DOUBLE, MPI_COMM_WORLD);
 
+
+    // compute loss
     if (rank == 0) {
-        double L = log(p[next_id]);
+        double L = 0; // total loss
 
-        printf("Loss: %lf, %lf, %lf", L, p[next_id], S);
+        for (int i = 0; i < V; i++) {
+            double li = log(p[ids[i]]); // loss of wi
+             
+            L += li;
+        }
+
+        L = L / n;
+
+        printf("Loss: %lf", L);
     }
 
     MPI_Finalize();
