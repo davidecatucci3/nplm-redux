@@ -26,8 +26,9 @@ int main() {
 
     // main variables 
     int ids[] = {23, 34}; // w1 and w2
-    int next_id = 3333; // w3
+    int next_id = 12; // w3
     double* C = embedding_matrix(V, m); // C embedding matrix 
+    int* vocab = malloc(V * sizeof(int)); // C embedding matrix 
 
     // perform forward computation for the word features layer
     double* x_flat = malloc(n * m * sizeof(double)); //input vector neural network that has been flattened 
@@ -110,12 +111,12 @@ int main() {
         double L = 0; // total loss
 
         for (int i = 0; i < V; i++) {
-            double li = log(p[ids[i]]); // loss of wi
+            double li = log(p[vocab[i]]); // loss of wi
              
             L += li;
         }
 
-        L = L / n;
+        L = L / V;
 
         printf("Loss: %lf", L);
     }

@@ -32,16 +32,21 @@ int main() {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
 
-    int next_id = 3333;
+    int next_id = 12;
     double* local_p = malloc((V/comm_sz) * sizeof(double));
     double* local_gradient_Ly = malloc((V/comm_sz) * sizeof(double));
     double* gradient_La = malloc(h * sizeof(double));
+    double* gradient_Lx = malloc(h * sizeof(double));
     double* local_gradient_La = malloc(h * sizeof(double));
     double* local_gradient_Lo = malloc(h * sizeof(double));
     double* local_U = embedding_matrix(V / comm_sz, h);
     double* local_b = malloc((V/comm_sz) * sizeof(double));
     double* H = embedding_matrix(h, n*m); // weights first layer
     double* d = malloc(h * sizeof(double)); // bias first layer
+    double* C = embedding_matrix(V, m);
+    double* x_flat = malloc(n * m * sizeof(double));
+    double* a = malloc(h * sizeof(double));
+    int ids[] = {23, 34};
 
     // perform backward gradient for output units in i-th block
     for (int i = 0; i < h; i++) {
@@ -70,8 +75,32 @@ int main() {
     MPI_Allreduce(&local_gradient_La, &gradient_La, h, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
     // backpropagate through and update hidden layer weights
+    for (int k = 0; k < h; k++) {
+        local_gradient_Lo[k] = (1.0 - a[k] * a[k]) * gradient_La[k];
+    }
+
+    for (int i = 0; i < m*n; i++) {
+        for (int k = 0; k < h; k++) {
+            gradient_Lx[i] += H[k * m*n + i] * local_gradient_Lo[k];
+        }
+    }
+
+    for (int k = 0; k < h; k++) {
+        d[k] += lr * local_gradient_Lo[k];
+
+        for (int i = 0; i < m*n; i++) {
+            H[k * m*n + i] += lr * local_gradient_Lo[k] * x_flat[i];
+        }
+    }
 
     // update word feature vectors for the input words: loop over k between 1 and n - 1
+    for (int k = 0; k < n - 1; k++) {
+        int word_id = ids[k]; 
+
+        for (int j = 0; j < m; j++) {
+            C[word_id * m + j] += lr * gradient_Lx[k * m + j];
+        }
+    }
 
     MPI_Finalize();
 
